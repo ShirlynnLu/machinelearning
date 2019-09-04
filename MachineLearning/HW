@@ -1,0 +1,82 @@
+from __future__ import division
+from __future__ import print_function
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+def read_data(file_name):
+    data_list = []
+    label_list = []
+    with open(file_name) as file:
+        print('Reading file {}...'.format(file_name))
+        file.readline()  # remove first(title) line
+        line = file.readline()
+        while line:
+            data, label = line.split()
+            data_list.append(int(data))
+            label_list.append(int(label))
+            line = file.readline()
+        print('Read file successful!')
+    data = np.array(data_list)
+    label = np.array(label_list)
+    data = data/10
+    label = label/100
+    print('data = {}, label = {}'.format(data, label))
+    return data, label
+
+
+def robust_gradient_descent(data, label):
+    alpha = learning_rate
+    weight0 = 1
+    weight1 = 1
+    data_num = data.shape[0]
+    for step in range(num_iter):
+
+        y_predict = weight0 + weight1 * data
+        abs_error = np.abs(y_predict - label)
+        phi = np.sort(abs_error)[int(data_num * gamma)]
+        square_index = np.where(abs_error <= phi)
+        log_index = np.where(abs_error > phi)
+
+        weight0_square_gradient = weight0 + weight1 * data[square_index] - label[square_index]
+        weight0_log_gradient = (weight0 + weight1 * data[log_index] - label[log_index]) / \
+                               (pow(weight0 + weight1 * data[log_index] - label[log_index], 2)+1)
+        weight1_square_gradient = (weight1 * data[square_index] + weight0 - label[square_index]) * data[square_index]
+        weight1_log_gradient = (weight1 * data[log_index] + weight0 - label[log_index]) * data[log_index] / \
+                               (pow(weight0 + weight1 * data[log_index] - label[log_index], 2)+1)
+
+        weight0 -= alpha * ((np.sum(weight0_square_gradient)+np.sum(weight0_log_gradient))/data_num)
+        weight1 -= alpha * ((np.sum(weight1_square_gradient)+np.sum(weight1_log_gradient))/data_num)
+
+        mse_loss = np.sum(pow(y_predict - label, 2))
+        robust_square_loss = np.sum(pow(y_predict[square_index] - label[square_index], 2))
+        robust_log_loss = np.sum(np.log(pow(y_predict[log_index] - label[log_index], 2) + 1))
+        robust_loss = robust_square_loss + robust_log_loss
+        if step % loss_print_fre == 0:
+            print('step = {}, mse_loss = {}, robust_loss = {}'.format(step, mse_loss, robust_loss))
+    print('weight0 = {}, weight1 = {}'.format(weight0, weight1))
+    return weight0, weight1
+
+
+def show_points_line(data, label, weight0, weight1):
+    plt.scatter(data, label)
+    data_min = int(np.min(data))
+    data_max = int(np.max(data)) + 2
+    x = np.array(range(data_min, data_max))
+    y = weight0 + weight1 * x
+    # y = range(1, 100)
+    plt.plot(x, y, color='red')
+    plt.show()
+
+
+
+if __name__ == '__main__':
+    learning_rate = 0.01
+    num_iter = 10000
+    gamma = 0.4
+    loss_print_fre = 500
+    data, label = read_data('5-trainingdata-312.txt')
+    # data, label = read_data('4-data.txt')
+    weight0, weight1 = robust_gradient_descent(data=data, label=label)
+    show_points_line(data=data, label=label, weight0=weight0, weight1=weight1)
